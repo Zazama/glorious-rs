@@ -98,15 +98,18 @@ impl GloriousDevice {
     ) -> Result<(), HidError> {
         let mut report_buffer = Vec::from(report.to_buffer());
         // When sending the settings, Byte[3] is always 0x7B!
+        // And Byte[6] is 0x00.
         report_buffer[3] = 0x7B;
+        report_buffer[6] = 0x00;
         self.data_device.send_feature_report(&report_buffer)?;
+        std::thread::sleep(std::time::Duration::from_millis(10));
         return Ok(());
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{GloriousDevice, feature_report::{LightingEffect, EffectBrightness, RGBColor}};
+    use crate::{GloriousDevice, feature_report::{LightingEffect, EffectBrightness, RGBColor, LiftOffDistance, PollingRate}};
 
     #[test]
     fn connect() {
@@ -138,5 +141,37 @@ mod tests {
             },
             _ => assert!(false)
         };
+    }
+
+    #[test]
+    fn lift_off_distance() {
+        let device = GloriousDevice::new().unwrap();
+        let mut settings = device.get_settings().unwrap();
+
+        [
+            LiftOffDistance::Low,
+            LiftOffDistance::High
+        ].iter().for_each(|lift_off_distance| {
+            settings.set_lift_off_distance(lift_off_distance.clone());
+            device.commit_settings(&settings).unwrap();
+            assert_eq!(device.get_settings().unwrap().lift_off_distance() as u8, *lift_off_distance as u8);
+        });
+    }
+
+    #[test]
+    fn polling_rate() {
+        let device = GloriousDevice::new().unwrap();
+        let mut settings = device.get_settings().unwrap();
+
+        [
+            PollingRate::Low,
+            PollingRate::Medium,
+            PollingRate::High,
+            PollingRate::Highest
+        ].iter().for_each(|polling_rate| {
+            settings.set_polling_rate(polling_rate.clone());
+            device.commit_settings(&settings).unwrap();
+            assert_eq!(device.get_settings().unwrap().polling_rate() as u8, *polling_rate as u8);
+        });
     }
 }

@@ -209,9 +209,85 @@ impl LightingEffect {
     }
 }
 
+// Low = 2mm
+// High = 3mm
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum LiftOffDistance {
+    Low = 0x01,
+    High = 0x02
+}
+
+impl LiftOffDistance {
+    pub fn new_2mm() -> Self {
+        return Self::Low;
+    }
+
+    pub fn new_3mm() -> Self {
+        return Self::High;
+    }
+
+    fn from_buffer(buffer: &[u8]) -> Self {
+        return match buffer[129] {
+            0x02 => Self::High,
+            _ => Self::Low
+        };
+    }
+
+    fn set_in_buffer(&self, buffer: &mut [u8]) {
+        buffer[129] = *self as u8;
+    }
+}
+
+// Low = 125Hz
+// Medium = 250Hz
+// High = 500Hz
+// Highest = 1000Hz
+#[repr(u8)]
+#[derive(Copy, Clone)]
+pub enum PollingRate {
+    Low = 0x01,
+    Medium = 0x02,
+    High = 0x03,
+    Highest = 0x04
+}
+
+impl PollingRate {
+    pub fn new_125_hz() -> Self {
+        return Self::Low;
+    }
+
+    pub fn new_250_hz() -> Self {
+        return Self::Medium
+    }
+
+    pub fn new_500_hz() -> Self {
+        return Self::High;
+    }
+
+    pub fn new_1000_hz() -> Self {
+        return Self::Highest;
+    }
+
+    fn from_buffer(buffer: &[u8]) -> Self {
+        return match buffer[10] {
+            0x04 => Self::Highest,
+            0x03 => Self::High,
+            0x02 => Self::Medium,
+            _ => Self::Low
+        };
+    }
+
+    fn set_in_buffer(&self, buffer: &mut [u8]) {
+        buffer[10] = *self as u8;
+    }
+}
+
 pub struct FeatureReport {
     raw_data: Vec<u8>,
     lighting_effect: LightingEffect,
+    lift_off_distance: LiftOffDistance,
+    polling_rate: PollingRate
 }
 
 impl FeatureReport {
@@ -222,7 +298,9 @@ impl FeatureReport {
 
         return Some(Self {
             raw_data: Vec::from(buffer),
-            lighting_effect: LightingEffect::from_buffer(&buffer[53..])
+            lighting_effect: LightingEffect::from_buffer(&buffer[53..]),
+            lift_off_distance: LiftOffDistance::from_buffer(&buffer),
+            polling_rate: PollingRate::from_buffer(&buffer)
         });
     }
 
@@ -240,5 +318,23 @@ impl FeatureReport {
     pub fn set_lighting_effect(&mut self, effect: LightingEffect) {
         effect.set_in_buffer(&mut self.raw_data[53..]);
         self.lighting_effect = effect;
+    }
+
+    pub fn lift_off_distance(&self) -> LiftOffDistance {
+        return self.lift_off_distance.clone();
+    }
+
+    pub fn set_lift_off_distance(&mut self, lift_off_distance: LiftOffDistance) {
+        lift_off_distance.set_in_buffer(&mut self.raw_data);
+        self.lift_off_distance = lift_off_distance;
+    }
+
+    pub fn polling_rate(&self) -> PollingRate {
+        return self.polling_rate.clone();
+    }
+
+    pub fn set_polling_rate(&mut self, polling_rate: PollingRate) {
+        polling_rate.set_in_buffer(&mut self.raw_data);
+        self.polling_rate = polling_rate;
     }
 }
